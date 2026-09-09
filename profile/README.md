@@ -5,37 +5,33 @@ storage and execution layer instead of each reinventing it.
 
 ## What's here
 
-**Two engines, one core.** [`sqlite-rs`](https://github.com/t-rust-db/sqlite-rs)
+**Four clients, one core.** [`sqlite-rs`](https://github.com/t-rust-db/sqlite-rs)
 is a safe, binary-compatible Rust reimplementation of SQLite — no reliance on
 the C library, row-oriented, VDBE-shaped. [`column-rs`](https://github.com/t-rust-db/column-rs)
-is a columnar analytics engine over Parquet, batch-oriented, read-only. They
-are not two unrelated projects that happen to share a name: sqlite-rs is the
-leading, more mature codebase, and column-rs's own planner and VM were
-migrated *into* the shared layer to converge on its shape wherever the two
-engines can share one, rather than the reverse.
-
-**The shared layer, not duplicated per engine:**
-- [`db-core`](https://github.com/t-rust-db/db-core) — the SQL language and
-  execution layer: types, expressions, parser, joins, VM, codegen, one crate,
-  feature-gated so a consumer builds only the row or column half it needs.
-- [`db-storage`](https://github.com/t-rust-db/db-storage) — physical storage,
-  one feature-gated module per execution mode (row's b-tree/pager/VFS,
-  column's Parquet reader).
-- [`db-cli`](https://github.com/t-rust-db/db-cli) — the REPL/readline
-  infrastructure every engine's CLI plugs into.
-- [`db-parquet`](https://github.com/t-rust-db/db-parquet) — the Parquet
-  reader column-rs's storage layer sits on.
-- [`grammar`](https://github.com/t-rust-db/grammar) — the SQL dialect
-  specification both engines' parsers are checked against.
-
-**Tools built on top:**
+is a columnar analytics engine over Parquet, batch-oriented, read-only.
 [`trigrep`](https://github.com/t-rust-db/trigrep) is a serverless
 trigram-indexed grep — the problem [microsoft/tgrep](https://github.com/microsoft/tgrep)
 solves, with `sqlite3`'s shape instead of tgrep's: one cache file per indexed
 root, opened per invocation, no daemon to keep warm. Its cache is a real
-SQLite-format database, built through `db-storage`'s b-tree and pager
-directly. [`db-extensions`](https://github.com/t-rust-db/db-extensions)
-holds database extensions that don't belong in either engine's core.
+SQLite-format database, built through `db-core`'s storage module (b-tree and
+pager) directly. [`loglume`](https://github.com/t-rust-db/loglume) is a Rust
+desktop log client. These are not unrelated projects that happen to share an
+org: sqlite-rs is the leading, more mature codebase, and each of the others'
+own planner/VM/storage code converges on its shape wherever it can share one,
+rather than keeping a drifting copy.
+
+**The shared layer, not duplicated per client:**
+- [`db-core`](https://github.com/t-rust-db/db-core) — the SQL language,
+  execution and storage layer: types, expressions, parser, joins, VM,
+  codegen, physical storage (row's b-tree/pager/VFS, column's Parquet
+  reader) — one crate, feature-gated so a consumer builds only the row or
+  column half it needs.
+- [`db-cli`](https://github.com/t-rust-db/db-cli) — the REPL/readline
+  infrastructure every client's CLI plugs into.
+
+**Tools built on top:**
+[`db-extensions`](https://github.com/t-rust-db/db-extensions)
+holds database extensions that don't belong in any client's core.
 
 **Keeping everyone honest:**
 [`benchmark`](https://github.com/t-rust-db/benchmark) — parity benchmarks
@@ -47,8 +43,8 @@ runnable, checked example queries and scenarios for the family.
 
 - **Convergence over duplication.** When sqlite-rs and column-rs can share a
   shape — the `Program`/`Instruction` bytecode mirror, the mechanism for
-  crash-safe commits — they do, migrated into `db-core`/`db-storage` rather
-  than kept as two copies that quietly drift.
+  crash-safe commits — they do, migrated into `db-core` rather than kept as
+  two copies that quietly drift.
 - **ADR-driven design.** Every non-trivial decision — dependency direction,
   what's shared versus what stays engine-specific, why a crate exists at all
   — is recorded in that repo's `.openspec/adr/`, including the ones that were
